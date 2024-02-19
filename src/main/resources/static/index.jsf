@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listagem de Questões</title>
+</head>
+<body>
+
+<h1>Listagem de Questões</h1>
+
+<ul id="questionList">
+    <!-- As questões serão exibidas aqui -->
+</ul>
+
+<script>
+    // Função para carregar a lista de questões ao carregar a página
+    window.onload = function () {
+        fetchQuestions();
+    }
+
+    // Função para buscar as questões da API
+    function fetchQuestions() {
+        fetch('http://localhost:8080/questions/list-all')
+            .then(response => response.json())
+            .then(data => displayQuestions(data))
+            .catch(error => console.error('Erro ao buscar as questões:', error));
+    }
+
+    // Função para exibir as questões na página
+    function displayQuestions(questions) {
+        const questionListElement = document.getElementById('questionList');
+
+        questions.forEach(question => {
+            const listItem = document.createElement('li');
+            listItem.textContent = `Tema: ${question.theme} - Pergunta: ${question.question} - Resposta: ${question.response}`;
+            questionListElement.appendChild(listItem);
+        });
+    }
+</script>
+
+</body>
+</html>

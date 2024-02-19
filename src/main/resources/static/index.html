@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz</title>
+</head>
+
+<body>
+
+<h1>Escolha um Tema</h1>
+
+<ul id="themeList">
+    <!-- Os temas serão exibidos aqui -->
+</ul>
+
+<div id="questionContainer">
+    <!-- A pergunta será exibida aqui -->
+</div>
+
+<ul id="alternativeList">
+    <!-- As alternativas da pergunta serão exibidas aqui -->
+</ul>
+
+<div id="timer">Tempo restante: 10 segundos</div>
+<div id="message"></div>
+
+<script>
+    let currentTheme;
+    let currentQuestionIndex = 0;
+    let questions = [];
+    let currentQuestion;
+    let countdown;
+    let timerInterval;
+    let userAnswers = []; // Array para armazenar as respostas do usuário
+
+    // Função para carregar a lista de temas ao carregar a página
+    window.onload = function () {
+        fetchThemes();
+    }
+
+    // Função para buscar os temas da API
+    function fetchThemes() {
+        fetch('http://localhost:8080/questions/list-themes')
+            .then(response => response.json())
+            .then(data => displayThemes(data))
+            .catch(error => console.error('Erro ao buscar os temas:', error));
+    }
+
+    // Função para exibir os temas na página
+    function displayThemes(themes) {
+        const themeListElement = document.getElementById('themeList');
+
+        themes.forEach(theme => {
+            const listItem = document.createElement('li');
+            listItem.textContent = theme;
+            listItem.addEventListener('click', () => startQuiz(theme));
+            themeListElement.appendChild(listItem);
+        });
+    }
+
+    // Função para iniciar o quiz com um tema selecionado
+    function startQuiz(theme) {
+        currentTheme = theme;
+        currentQuestionIndex = 0;
+        userAnswers = []; // Reinicia as respostas do usuário
+        fetchQuestionsByTheme(theme);
+    }
+
+    // Função para buscar as perguntas relacionadas ao tema selecionado
+    function fetchQuestionsByTheme(theme) {
+        fetch(`http://localhost:8080/questions/list-by-theme/${theme}`)
+            .then(response => response.json())
+            .then(data => {
+                questions = data;
+                startQuestionTimer();
+                displayQuestion();
+            })
+            .catch(error => console.error(`Erro ao buscar perguntas do tema ${theme}:`, error));
+    }
+
+    // Função para iniciar o temporizador da pergunta
+    function startQuestionTimer() {
+        if (currentQuestionIndex < questions.length) {
+            currentQuestion = questions[currentQuestionIndex];
+            displayQuestion();
+            countdown = 10; // 40 segundos para cada pergunta
+            updateTimer();
+            timerInterval = setInterval(() => {
+                updateTimer();
+                if (countdown < 0) {
+                    clearInterval(timerInterval);
+                    handleTimeUp();
+                }
+            }, 1000);
+        } else {
+            alert('Quiz concluído!');
+            displayResult();
+        }
+    }
+
+    // Função para exibir a pergunta na página
+    function displayQuestion() {
+        const questionContainer = document.getElementById('questionContainer');
+        questionContainer.innerHTML = `<h2>${currentQuestion.question}</h2>`;
+        fetchAlternativesForCurrentQuestion();
+    }
+
+    // Função para buscar as alternativas da pergunta atual
+    function fetchAlternativesForCurrentQuestion() {
+        const questionId = currentQuestion.id; // Supondo que o ID da pergunta esteja acessível
+        fetch(`http://localhost:8080/question-alternatives/by-question/${questionId}`)
+            .then(response => response.json())
+            .then(data => displayAlternatives(data))
+            .catch(error => console.error(`Erro ao buscar alternativas para a pergunta ${questionId}:`, error));
+    }
+
+    // Função para exibir as alternativas da pergunta na página
+    function displayAlternatives(alternatives) {
+        const alternativeListElement = document.getElementById('alternativeList');
+        alternativeListElement.innerHTML = '';
+
+        alternatives.forEach(alternative => {
+            const listItem = document.createElement('li');
+            listItem.textContent = alternative.alternative;
+            listItem.addEventListener('click', () => handleAlternativeClick(alternative));
+            alternativeListElement.appendChild(listItem);
+        });
+    }
+
+    // Função para lidar com o clique em uma alternativa
+    function handleAlternativeClick(alternative) {
+        clearInterval(timerInterval); // Pausa o temporizador
+
+        const isCorrect = alternative.itsCorrect;
+
+        if (isCorrect) {
+            document.getElementById('message').textContent = 'Resposta correta!';
+        } else {
+            document.getElementById('message').textContent = 'Resposta incorreta.';
+        }
+
+        // Armazena a resposta do usuário
+        userAnswers.push({
+            question: currentQuestion.question,
+            isCorrect: isCorrect
+        });
+
+        // Agora, avance para a próxima pergunta
+        currentQuestionIndex++;
+        setTimeout(() => {
+            startQuestionTimer();
+        }, 2000); // Aguarda 2 segundos antes de passar para a próxima pergunta
+    }
+
+    // Função para lidar com o tempo esgotado
+    function handleTimeUp() {
+        document.getElementById('message').textContent = 'Tempo esgotado!';
+
+        // Armazena a resposta do usuário como incorreta
+        userAnswers.push({
+            question: currentQuestion.question,
+            isCorrect: false
+        });
+
+        // Agora, avance para a próxima pergunta
+        currentQuestionIndex++;
+        setTimeout(() => {
+            startQuestionTimer();
+        }, 2000); // Aguarda 2 segundos antes de passar para a próxima pergunta
+    }
+
+    // Função para atualizar o temporizador na página
+    function updateTimer() {
+        const timerElement = document.getElementById('timer');
+        timerElement.textContent = `Tempo restante: ${countdown} segundos`;
+        countdown--;
+    }
+
+    // Função para exibir o resultado do quiz
+    function displayResult() {
+        // Conta as respostas corretas e incorretas
+        const correctAnswers = userAnswers.filter(answer => answer.isCorrect).length;
+        const incorrectAnswers = userAnswers.length - correctAnswers;
+
+        // Exibe o resultado
+        alert(`Quiz concluído!\n\nRespostas Corretas: ${correctAnswers}\nRespostas Incorretas: ${incorrectAnswers}`);
+    }
+</script>
+
+</body>
+
+</html>
